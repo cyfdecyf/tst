@@ -5,34 +5,68 @@ import (
 	"testing"
 )
 
+func reverseString(s string) string {
+	b := []byte(s)
+	n := len(b)
+	for i := 0; i < n/2; i++ {
+		b[i], b[n-1-i] = b[n-1-i], b[i]
+	}
+	return string(b)
+}
+
 func TestTST(t *testing.T) {
 	testData := []struct {
 		key string
 		val string
+		rk  bool
 	}{
-		{"hello", "world"},
-		{"he", "llo"},
-		{"h", "ello"},
-		{"hel", "lo"},
-		{"foo", "bar"},
-		{"helloworld", "great"},
-		{"hey", "yes"},
-		{"mind", "one's"},
-		{"p's", "and q's"},
+		{"hello", "world", false},
+		{"he", "llo", true},
+		{"h", "ello", false},
+		{"hel", "lo", true},
+		{"foo", "bar", false},
+		{"helloworld", "great", true},
+		{"hey", "yes", false},
+		{"mind", "one's", true},
+		{"p's", "and q's", false},
+		{"4321", "1234", true},
+		{"5678", "5678", false},
 	}
 
 	trie := &Trie{}
 	for _, td := range testData {
-		trie.Put(td.key, td.val)
-		if trie.Get(td.key) == nil {
+		put := (*Trie).Put
+		get := (*Trie).Get
+		if td.rk {
+			put = (*Trie).PutRK
+			get = (*Trie).GetRK
+		}
+		put(trie, td.key, td.val)
+		if get(trie, td.key) == nil {
 			t.Errorf("get nil after inserting (%s, %s)\n", td.key, td.val)
 		}
 	}
 
 	for _, td := range testData {
-		val := trie.Get(td.key).(string)
+		get := (*Trie).Get
+		get2 := (*Trie).GetRK
+		if td.rk {
+			get = (*Trie).GetRK
+			get2 = (*Trie).Get
+		}
+
+		v := get(trie, td.key)
+		v2 := get2(trie, reverseString(td.key))
+		if v != v2 {
+			t.Errorf("(%s, %s) reversed search for reversed key does NOT match\n",
+				td.key, td.val)
+		}
+		if v == nil {
+			t.Fatalf("(%s, %s) value not found\n", td.key, td.val)
+		}
+		val := v.(string)
 		if val != td.val {
-			t.Errorf("(%s, %s) get wrong value: %s", td.key, td.val, val)
+			t.Errorf("(%s, %s) get wrong value: %s\n", td.key, td.val, val)
 		}
 	}
 
@@ -81,6 +115,11 @@ func TestGetShortestPrefix(t *testing.T) {
 
 	for _, td := range searchData {
 		val := trie.GetShortestPrefix(td.key)
+		val2 := trie.GetShortestPrefixRK(reverseString(td.key))
+		if val != val2 {
+			t.Errorf("(%s, %s) reversed search for reversed key does NOT match\n",
+				td.key, td.val)
+		}
 		if !reflect.DeepEqual(val, td.val) {
 			t.Error("key:", td.key, "expected:", td.val, "got:", val)
 		}

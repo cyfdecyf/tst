@@ -36,14 +36,59 @@ func (t *Trie) Size() int {
 // Put inserts a key/value pair into the trie. If the key is already in the
 // trie, it's value will be updated. Note: empty strings will be ignored.
 func (t *Trie) Put(key string, value interface{}) {
+	t.put(key, value, false)
+}
+
+// PutRK is the same as Put, but the key is reversely inserted into the
+// trie.
+func (t *Trie) PutRK(key string, value interface{}) {
+	t.put(key, value, true)
+}
+
+// Get returns the value associated with key.
+func (t *Trie) Get(key string) interface{} {
+	return t.get(key, false)
+}
+
+// GetRK is the same as Get, but the key is reversely iterated when searching
+// for the value.
+func (t *Trie) GetRK(key string) interface{} {
+	return t.get(key, true)
+}
+
+// GetShortestPrefix searches for the shortest key which is a prefix of the
+// given key and returns the value. For example, if trie contains key "com"
+// and "com.g", search for "com.google" will return value associated with
+// "com".
+func (t *Trie) GetShortestPrefix(key string) interface{} {
+	return t.getShortestPrefix(key, false)
+}
+
+// GetShortestPrefixRK is the same as GetShortestPrefix, but the key is
+// reversely iterated when searching for the value.
+func (t *Trie) GetShortestPrefixRK(key string) interface{} {
+	return t.getShortestPrefix(key, true)
+}
+
+func iterStartEndStep(key string, reverseKey bool) (start, end, step int) {
+	if reverseKey {
+		return len(key) - 1, 0, -1
+	} else {
+		return 0, len(key) - 1, 1
+	}
+}
+
+func (t *Trie) put(key string, value interface{}, reverseKey bool) {
 	if len(key) < 1 {
 		return
 	}
 
+	start, end, step := iterStartEndStep(key, reverseKey)
+
 	t.n++
 	pnd := &t.root
-	i := 0
-	c := key[0]
+	i := start
+	c := key[start]
 	for {
 		if *pnd == nil {
 			// fmt.Printf("new node: %c\n", c)
@@ -54,9 +99,9 @@ func (t *Trie) Put(key string, value interface{}) {
 			pnd = &(*pnd).left
 		case c > (*pnd).c:
 			pnd = &(*pnd).right
-		case i < len(key)-1:
+		case i != end:
 			pnd = &(*pnd).mid
-			i++
+			i += step
 			c = key[i]
 		default:
 			(*pnd).val = value
@@ -66,15 +111,16 @@ func (t *Trie) Put(key string, value interface{}) {
 	}
 }
 
-// Get returns the value associated with key.
-func (t *Trie) Get(key string) interface{} {
+func (t *Trie) get(key string, reverseKey bool) interface{} {
 	if len(key) < 1 {
 		return nil
 	}
 
+	start, end, step := iterStartEndStep(key, reverseKey)
+
 	nd := t.root
-	i := 0
-	c := key[0]
+	i := start
+	c := key[start]
 	// go down the tree
 	for nd != nil {
 		switch {
@@ -82,9 +128,9 @@ func (t *Trie) Get(key string) interface{} {
 			nd = nd.left
 		case c > nd.c:
 			nd = nd.right
-		case i < len(key)-1:
+		case i != end:
 			nd = nd.mid
-			i++
+			i += step
 			c = key[i]
 		default:
 			return nd.val
@@ -93,31 +139,29 @@ func (t *Trie) Get(key string) interface{} {
 	return nil
 }
 
-// GetShortestPrefix searches for the shortest key which is a prefix of the
-// given key and returns the value. For example, if trie contains key "com"
-// and "com.g", search for "com.google" will return value associated with
-// "com".
-func (t *Trie) GetShortestPrefix(key string) interface{} {
+func (t *Trie) getShortestPrefix(key string, reverseKey bool) interface{} {
 	// Most code copied from Get.
 	if len(key) < 1 {
 		return nil
 	}
 
+	start, end, step := iterStartEndStep(key, reverseKey)
+
 	nd := t.root
-	i := 0
-	c := key[0]
+	i := start
+	c := key[start]
 	for nd != nil {
 		switch {
 		case c < nd.c:
 			nd = nd.left
 		case c > nd.c:
 			nd = nd.right
-		// This is the only added code from Get.
+		// This is the only added code to get.
 		case nd.val != nil:
 			return nd.val
-		case i < len(key)-1:
+		case i != end:
 			nd = nd.mid
-			i++
+			i += step
 			c = key[i]
 		default:
 			return nd.val
